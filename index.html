@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lingo Book — reading &amp; vocabulary</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+:root{
+  --paper:#ECE7D8;
+  --card:#F6F2E6;
+  --ink:#24313D;
+  --ink-soft:#5A6B73;
+  --line:#D9D0BB;
+  --moss:#63715A;
+  --moss-soft:#E4E8DC;
+  --ochre:#B4823E;
+  --ochre-soft:#F1E2C7;
+  --err:#A24B3F;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+.app{
+  max-width:640px;
+  margin:0 auto;
+  padding:20px 18px 100px;
+}
+
+/* header */
+.app-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:18px;
+  padding-bottom:14px;
+  border-bottom:1px solid var(--line);
+}
+.app-title{
+  font-family:'Source Serif 4',Georgia,serif;
+  font-size:26px;
+  font-weight:600;
+  letter-spacing:0.2px;
+}
+.app-title span{color:var(--moss);}
+.app-sub{
+  font-size:12.5px;
+  color:var(--ink-soft);
+  margin-top:2px;
+}
+
+/* article library */
+.library-section{margin-bottom:20px;}
+.library-header{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+.library-toggle{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+  flex:1;
+  min-width:0;
+}
+.library-title{
+  font-size:13px;
+  font-weight:600;
+  color:var(--ink-soft);
+}
+.library-count{
+  font-size:12px;
+  color:var(--ink-soft);
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:1px 8px;
+}
+.library-list{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-bottom:4px;
+}
+.article-item{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:9px 10px;
+}
+.article-icon{
+  font-size:19px;
+  line-height:1;
+  flex:0 0 auto;
+  width:26px;
+  text-align:center;
+}
+.article-item.active{
+  border-color:var(--moss);
+  background:var(--moss-soft);
+}
+.article-info{
+  flex:1;
+  min-width:0;
+  cursor:pointer;
+}
+.article-name{
+  font-family:'Source Serif 4',Georgia,serif;
+  font-size:15px;
+  font-weight:600;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.article-lang{
+  font-size:11.5px;
+  color:var(--ink-soft);
+  margin-top:1px;
+}
+.btn-add{
+  font-size:13px;
+  padding:9px 12px;
+  border-radius:3px;
+  border:1px solid var(--ink);
+  background:var(--ink);
+  color:var(--paper);
+  cursor:pointer;
+  white-space:nowrap;
+}
+.btn-add:hover{opacity:0.88;}
+
+/* playback bar */
+.playbar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:12px 14px;
+  margin-bottom:20px;
+}
+.playbar button{
+  border:none;
+  background:none;
+  cursor:pointer;
+  color:var(--ink);
+  padding:6px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  transition:background 0.15s;
+}
+.playbar button:hover{background:var(--moss-soft);}
+.playbar button.main{
+  background:var(--moss);
+  color:var(--card);
+  width:40px;height:40px;
+}
+.playbar button.main:hover{background:var(--ink);}
+.playbar .sentence-pos{
+  font-size:12px;
+  color:var(--ink-soft);
+  font-variant-numeric:tabular-nums;
+}
+.speed-control{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-left:auto;
+}
+.speed-control input[type=range]{
+  -webkit-appearance:none;
+  appearance:none;
+  width:80px;
+  height:3px;
+  background:var(--line);
+  border-radius:2px;
+  outline:none;
+  cursor:pointer;
+}
+.speed-control input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:14px;height:14px;
+  border-radius:50%;
+  background:var(--moss);
+  cursor:pointer;
+  border:none;
+}
+.speed-control input[type=range]::-moz-range-thumb{
+  width:14px;height:14px;
+  border-radius:50%;
+  background:var(--moss);
+  cursor:pointer;
+  border:none;
+}
+.speed-label{
+  font-size:12px;
+  color:var(--ink-soft);
+  font-variant-numeric:tabular-nums;
+  width:40px;
+}
+
+/* reading pane */
+.reading-pane{
+  font-family:'Source Serif 4',Georgia,serif;
+  font-size:19px;
+  line-height:1.75;
+  color:var(--ink);
+  max-width:64ch;
+}
+.reading-pane p{
+  margin:0 0 1.15em;
+}
+.reading-pane p:last-child{
+  margin-bottom:0;
+}
+.word{
+  cursor:pointer;
+  padding:1px 1px;
+  border-radius:2px;
+  transition:background 0.12s;
+}
+.word:hover{background:var(--moss-soft);}
+.word.annotated{
+  text-decoration:underline;
+  text-decoration-style:dotted;
+  text-decoration-color:var(--ochre);
+  text-underline-offset:3px;
+  text-decoration-thickness:1.5px;
+}
+
+.empty-state{
+  font-family:'Source Serif 4',Georgia,serif;
+  color:var(--ink-soft);
+  padding:40px 10px;
+  text-align:center;
+  font-size:16px;
+}
+
+/* vocab panel */
+.vocab-section{margin-top:32px;}
+.vocab-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  cursor:pointer;
+  padding:10px 0;
+  border-top:1px solid var(--line);
+}
+.vocab-title{
+  font-size:13px;
+  font-weight:600;
+  color:var(--ink-soft);
+}
+.vocab-count{
+  font-size:12px;
+  color:var(--ink-soft);
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:1px 8px;
+}
+.vocab-list{display:flex;flex-direction:column;gap:8px;margin-top:6px;}
+.vocab-item{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:10px 12px;
+  cursor:pointer;
+}
+.vocab-item .term{
+  font-family:'Source Serif 4',Georgia,serif;
+  font-size:16px;
+  font-weight:600;
+}
+.vocab-item .def{
+  font-size:13px;
+  color:var(--ink-soft);
+  margin-top:2px;
+}
+
+/* sheet / modal */
+.overlay{
+  position:fixed;inset:0;
+  background:rgba(36,49,61,0.35);
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  z-index:50;
+}
+@media (min-width:640px){
+  .overlay{align-items:center;}
+}
+.sheet{
+  background:var(--paper);
+  width:100%;
+  max-width:520px;
+  border-radius:10px 10px 0 0;
+  padding:20px 20px 24px;
+  border-top:1px solid var(--line);
+}
+@media (min-width:640px){
+  .sheet{border-radius:8px;}
+}
+.sheet-title{
+  font-family:'Source Serif 4',Georgia,serif;
+  font-size:22px;
+  margin-bottom:4px;
+}
+.sheet label{
+  display:block;
+  font-size:12px;
+  color:var(--ink-soft);
+  margin:14px 0 5px;
+}
+.sheet input[type=text], .sheet textarea, .sheet select{
+  width:100%;
+  font-family:'IBM Plex Sans',sans-serif;
+  font-size:14px;
+  padding:9px 10px;
+  border:1px solid var(--line);
+  border-radius:3px;
+  background:var(--card);
+  color:var(--ink);
+  resize:vertical;
+}
+.sheet textarea{min-height:64px;}
+.sheet-actions{
+  display:flex;
+  gap:10px;
+  margin-top:20px;
+}
+.sheet-actions button{
+  flex:1;
+  padding:11px;
+  border-radius:3px;
+  font-size:14px;
+  cursor:pointer;
+  border:1px solid var(--line);
+  background:var(--card);
+  color:var(--ink);
+}
+.sheet-actions button.save{
+  background:var(--ink);
+  color:var(--paper);
+  border-color:var(--ink);
+}
+.sheet-actions button.delete{
+  color:var(--err);
+  border-color:var(--err);
+  background:none;
+  flex:0 0 auto;
+  padding:11px 16px;
+}
+.sheet-close{
+  position:absolute;
+  top:16px;right:16px;
+  background:none;border:none;
+  font-size:20px;
+  color:var(--ink-soft);
+  cursor:pointer;
+}
+.sheet-wrap{position:relative;}
+
+.hint{
+  font-size:11.5px;
+  color:var(--ink-soft);
+  margin-top:16px;
+  line-height:1.5;
+}
+
+.example-row{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  margin-bottom:6px;
+}
+.example-row input{flex:1;}
+.context-text{
+  flex:1;
+  font-family:'Source Serif 4',Georgia,serif;
+  font-size:14.5px;
+  line-height:1.5;
+  color:var(--ink-soft);
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:3px;
+  padding:9px 10px;
+}
+.voice-list{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-top:10px;
+}
+.voice-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:9px 10px;
+}
+.voice-row.active{
+  border-color:var(--moss);
+  background:var(--moss-soft);
+}
+.voice-info{
+  flex:1;
+  min-width:0;
+  cursor:pointer;
+}
+.voice-name{
+  font-size:14px;
+  font-weight:500;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.voice-lang{
+  font-size:11.5px;
+  color:var(--ink-soft);
+  margin-top:1px;
+}
+.icon-btn{
+  border:1px solid var(--line);
+  background:var(--card);
+  border-radius:3px;
+  width:34px;height:34px;
+  flex:0 0 auto;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:13px;
+  color:var(--ink);
+}
+.icon-btn:hover{background:var(--moss-soft);}
+.add-example-btn{
+  font-size:12.5px;
+  color:var(--moss);
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:4px 0 2px;
+}
+.loading-row{
+  font-size:13px;
+  color:var(--ink-soft);
+  padding:6px 0 2px;
+}
+.regen-btn{
+  position:absolute;
+  top:15px;right:48px;
+  background:none;
+  border:none;
+  font-size:17px;
+  color:var(--ink-soft);
+  cursor:pointer;
+}
+.regen-btn:hover{color:var(--ink);}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+(function(){
+  // Fall back to localStorage when running outside a Claude artifact
+  // (window.storage is a Claude-only API). This keeps the app fully
+  // functional once deployed to a normal static host — data just stays
+  // on the device/browser it's used in, rather than syncing via Claude.
+  if(!window.storage){
+    window.storage = {
+      async get(key){
+        const raw = localStorage.getItem(key);
+        if(raw === null){ throw new Error('not found'); }
+        return { key, value: raw, shared: false };
+      },
+      async set(key, value){
+        localStorage.setItem(key, value);
+        return { key, value, shared: false };
+      },
+      async delete(key){
+        localStorage.removeItem(key);
+        return { key, deleted: true, shared: false };
+      },
+      async list(prefix){
+        const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
+        return { keys, prefix, shared: false };
+      }
+    };
+  }
+
+  const STORE_KEY = 'marginalia-data';
+  let data = { articles: [], vocab: {} };
+  let currentArticleId = null;
+  let playFrom = 0;
+  let isPlaying = false;
+  let isPaused = false;
+  let vocabOpen = true;
+  let libraryOpen = true;
+  let sheet = null; // {mode:'annotate', wordText, wordIndex} or {mode:'add'} or null
+  let utteranceRef = null;
+  const RATE_OPTIONS = [0.6, 0.75, 0.85, 1.0, 1.15, 1.3];
+  let playbackRate = 0.85;
+  let playToken = 0;
+  let apiKey = '';
+  let gDriveClientId = '';
+  let gDriveTokenClient = null;
+  let gDriveAccessToken = null;
+  let gDriveConnected = false;
+  let gDriveFileId = null;
+  let gDriveSyncing = false;
+  const GDRIVE_FILE_NAME = 'marginalia-data.json';
+
+  const sampleText = "Le marché aux fleurs ouvre tôt, avant que la ville ne se réveille vraiment. Les vendeurs installent leurs étals avec des gestes lents, presque rituels. Une odeur de café se mêle à celle des roses et du jasmin. Les habitants du quartier viennent chaque semaine, non pas pour acheter, mais pour retrouver ce moment de calme avant la journée.";
+
+  const ARTICLE_ICONS = ['📖','🖋️','🗞️','🕰️','🍂','🌿','🕯️','☕','🌙','⭐','🧭','🔖','🪶','🎭','🗝️','🌾','🍃','🧵','🎨','🧩','🦢','🐚','🌻','🍁'];
+  function randomIcon(){
+    return ARTICLE_ICONS[Math.floor(Math.random() * ARTICLE_ICONS.length)];
+  }
+
+  const LANG_MAP = {
+    'french':'fr-FR','français':'fr-FR','fr':'fr-FR',
+    'spanish':'es-ES','español':'es-ES','es':'es-ES',
+    'german':'de-DE','deutsch':'de-DE','de':'de-DE',
+    'italian':'it-IT','italiano':'it-IT','it':'it-IT',
+    'portuguese':'pt-PT','português':'pt-PT','pt':'pt-PT',
+    'japanese':'ja-JP','日本語':'ja-JP','ja':'ja-JP',
+    'chinese':'zh-CN','mandarin':'zh-CN','中文':'zh-CN','zh':'zh-CN',
+    'korean':'ko-KR','한국어':'ko-KR','ko':'ko-KR',
+    'russian':'ru-RU','русский':'ru-RU','ru':'ru-RU',
+    'arabic':'ar-SA','ar':'ar-SA',
+    'dutch':'nl-NL','nl':'nl-NL',
+    'english':'en-US','en':'en-US'
+  };
+  let voiceList = [];
+  function refreshVoices(){
+    voiceList = window.speechSynthesis.getVoices();
+  }
+  refreshVoices();
+  if(window.speechSynthesis.onvoiceschanged !== undefined){
+    window.speechSynthesis.onvoiceschanged = function(){
+      refreshVoices();
+      if(sheet && sheet.mode === 'voice') render();
+    };
+  }
+  function langCodeFor(name){
+    if(!name) return 'en-US';
+    const key = name.trim().toLowerCase();
+    if(LANG_MAP[key]) return LANG_MAP[key];
+    if(/^[a-z]{2}(-[a-z]{2,4})?$/i.test(name.trim())) return name.trim();
+    return 'en-US';
+  }
+  function voiceFor(code){
+    if(!voiceList.length) refreshVoices();
+    const preferredURI = data.voicePrefs && data.voicePrefs[code];
+    if(preferredURI){
+      const preferred = voiceList.find(v => v.voiceURI === preferredURI);
+      if(preferred) return preferred;
+    }
+    const short = code.split('-')[0];
+    return voiceList.find(v => v.lang && v.lang.toLowerCase() === code.toLowerCase())
+        || voiceList.find(v => v.lang && v.lang.toLowerCase().startsWith(short.toLowerCase()))
+        || null;
+  }
+
+  const TEST_PHRASES = {
+    en:'Hello, this is a voice test.',
+    fr:'Bonjour, ceci est un test de voix.',
+    es:'Hola, esto es una prueba de voz.',
+    de:'Hallo, dies ist ein Stimmtest.',
+    it:'Ciao, questo è un test vocale.',
+    pt:'Olá, este é um teste de voz.',
+    ja:'こんにちは、これは音声テストです。',
+    zh:'你好，这是语音测试。',
+    ko:'안녕하세요, 이것은 음성 테스트입니다.',
+    ru:'Привет, это тест голоса.',
+    ar:'مرحبا، هذا اختبار صوتي.',
+    nl:'Hallo, dit is een spraaktest.'
+  };
+  function previewVoice(voiceURI){
+    const v = voiceList.find(x => x.voiceURI === voiceURI);
+    if(!v) return;
+    window.speechSynthesis.cancel();
+    isPlaying = false; isPaused = false;
+    const short = (v.lang || 'en').split('-')[0].toLowerCase();
+    const utter = new SpeechSynthesisUtterance(TEST_PHRASES[short] || TEST_PHRASES.en);
+    utter.voice = v;
+    utter.lang = v.lang;
+    utter.rate = playbackRate;
+    window.speechSynthesis.speak(utter);
+  }
+  function openVoicePicker(){
+    const art = currentArticle();
+    if(!art) return;
+    refreshVoices();
+    sheet = { mode:'voice', langCode: langCodeFor(art.language) };
+    render();
+  }
+  function selectVoice(langCode, voiceURI){
+    data.voicePrefs = data.voicePrefs || {};
+    data.voicePrefs[langCode] = voiceURI;
+    save();
+    render();
+  }
+  function resetVoice(langCode){
+    if(data.voicePrefs) delete data.voicePrefs[langCode];
+    save();
+    render();
+  }
+
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+
+  async function load(){
+    try{
+      const res = await window.storage.get(STORE_KEY, false);
+      if(res && res.value){
+        data = JSON.parse(res.value);
+      }
+    }catch(e){
+      // no data yet
+    }
+    if(!data.articles || data.articles.length === 0){
+      const id = uid();
+      data.articles = [{ id, title:'Le marché aux fleurs', language:'French', text:sampleText, icon:randomIcon(), createdAt:Date.now() }];
+      data.vocab = { [id]: [] };
+      await save();
+    }
+    // migrate any articles saved before icons existed
+    let iconsAssigned = false;
+    data.articles.forEach(a => {
+      if(!a.icon){ a.icon = randomIcon(); iconsAssigned = true; }
+    });
+    if(iconsAssigned) await save();
+    // migrate legacy single-example entries to the examples array
+    let migrated = false;
+    for(const key in data.vocab){
+      data.vocab[key] = (data.vocab[key]||[]).map(v=>{
+        if(!v.examples){
+          v.examples = v.example ? [v.example] : [];
+          migrated = true;
+        }
+        return v;
+      });
+    }
+    if(migrated) await save();
+    data.voicePrefs = data.voicePrefs || {};
+    currentArticleId = data.articles[0].id;
+    render();
+  }
+
+  async function save(){
+    try{
+      await window.storage.set(STORE_KEY, JSON.stringify(data), false);
+    }catch(e){
+      console.error('storage failed', e);
+    }
+    if(gDriveConnected){ drivePush(); } // fire-and-forget; doesn't block the UI
+  }
+
+  const API_KEY_STORE = 'marginalia-api-key';
+  async function loadApiKey(){
+    try{
+      const res = await window.storage.get(API_KEY_STORE, false);
+      if(res && res.value) apiKey = res.value;
+    }catch(e){ /* not set yet */ }
+  }
+  function openSettings(){
+    sheet = { mode:'settings', apiKeyInput: apiKey, driveMsg: null };
+    render();
+  }
+  async function saveApiKey(){
+    const val = document.getElementById('f-apikey').value.trim();
+    apiKey = val;
+    try{
+      if(apiKey) await window.storage.set(API_KEY_STORE, apiKey, false);
+      else await window.storage.delete(API_KEY_STORE, false);
+    }catch(e){ console.error('storage failed', e); }
+    sheet = null;
+    render();
+  }
+  async function clearApiKey(){
+    apiKey = '';
+    try{ await window.storage.delete(API_KEY_STORE, false); }catch(e){ /* nothing to clear */ }
+    sheet = null;
+    render();
+  }
+
+  const GDRIVE_CLIENT_STORE = 'marginalia-gdrive-client-id';
+  async function loadGDriveClientId(){
+    try{
+      const res = await window.storage.get(GDRIVE_CLIENT_STORE, false);
+      if(res && res.value) gDriveClientId = res.value;
+    }catch(e){ /* not set yet */ }
+  }
+  function saveGDriveClientId(){
+    const val = document.getElementById('f-gdrive-client').value.trim();
+    gDriveClientId = val;
+    (async () => {
+      try{
+        if(gDriveClientId) await window.storage.set(GDRIVE_CLIENT_STORE, gDriveClientId, false);
+        else await window.storage.delete(GDRIVE_CLIENT_STORE, false);
+      }catch(e){ console.error('storage failed', e); }
+    })();
+    if(sheet) sheet.driveMsg = 'Client ID saved.';
+    render();
+  }
+
+  function gisReady(){
+    return typeof google !== 'undefined' && google.accounts && google.accounts.oauth2;
+  }
+
+  function connectGoogleDrive(){
+    if(sheet) sheet.driveMsg = null;
+    if(!gDriveClientId){
+      if(sheet) sheet.driveMsg = 'Save an OAuth Client ID first.';
+      render();
+      return;
+    }
+    if(!gisReady()){
+      if(sheet) sheet.driveMsg = 'Google sign-in script failed to load — check your connection and that this page is served over https (not opened as a local file).';
+      render();
+      return;
+    }
+    if(!gDriveTokenClient){
+      gDriveTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: gDriveClientId,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: async (resp) => {
+          if(resp && resp.access_token){
+            gDriveAccessToken = resp.access_token;
+            gDriveConnected = true;
+            if(sheet) sheet.driveMsg = null;
+            render();
+            await driveInitialSync();
+          } else {
+            if(sheet) sheet.driveMsg = 'Google sign-in failed or was cancelled.';
+            render();
+          }
+        }
+      });
+    }
+    gDriveTokenClient.requestAccessToken({ prompt: gDriveAccessToken ? '' : 'consent' });
+  }
+
+  function disconnectGoogleDrive(){
+    if(gDriveAccessToken && gisReady()){
+      google.accounts.oauth2.revoke(gDriveAccessToken, () => {});
+    }
+    gDriveAccessToken = null;
+    gDriveConnected = false;
+    gDriveFileId = null;
+    if(sheet) sheet.driveMsg = 'Disconnected.';
+    render();
+  }
+
+  // Wraps a Drive API fetch, retrying once with a silently-refreshed token
+  // if the access token has expired (tokens from GIS last about an hour).
+  async function driveFetch(url, options){
+    options = options || {};
+    options.headers = Object.assign({}, options.headers, { Authorization: 'Bearer ' + gDriveAccessToken });
+    let res = await fetch(url, options);
+    if(res.status === 401 && gDriveTokenClient){
+      await new Promise((resolve) => {
+        const prevCallback = gDriveTokenClient.callback;
+        gDriveTokenClient.callback = (resp) => {
+          if(resp && resp.access_token) gDriveAccessToken = resp.access_token;
+          gDriveTokenClient.callback = prevCallback;
+          resolve();
+        };
+        gDriveTokenClient.requestAccessToken({ prompt: '' });
+      });
+      options.headers.Authorization = 'Bearer ' + gDriveAccessToken;
+      res = await fetch(url, options);
+    }
+    return res;
+  }
+
+  async function driveFindFile(){
+    const q = encodeURIComponent(`name='${GDRIVE_FILE_NAME}' and trashed=false`);
+    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,modifiedTime)`);
+    if(!res.ok) throw new Error('Drive list failed (' + res.status + ')');
+    const json = await res.json();
+    return (json.files && json.files[0]) || null;
+  }
+
+  async function driveDownload(fileId){
+    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+    if(!res.ok) throw new Error('Drive download failed (' + res.status + ')');
+    return await res.text();
+  }
+
+  async function driveUpload(fileId, content){
+    const metadata = { name: GDRIVE_FILE_NAME, mimeType: 'application/json' };
+    const boundary = 'marginalia-' + uid();
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+      JSON.stringify(fileId ? {} : metadata) + `\r\n` +
+      `--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
+      content + `\r\n--${boundary}--`;
+    const url = fileId
+      ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+    const res = await driveFetch(url, {
+      method: fileId ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body
+    });
+    if(!res.ok) throw new Error('Drive upload failed (' + res.status + ')');
+    const json = await res.json();
+    return json.id;
+  }
+
+  async function drivePush(){
+    if(!gDriveConnected || !gDriveAccessToken) return;
+    try{
+      const id = await driveUpload(gDriveFileId, JSON.stringify(data));
+      gDriveFileId = id;
+    }catch(e){
+      console.error('Drive push failed', e);
+    }
+  }
+
+  async function driveInitialSync(){
+    gDriveSyncing = true;
+    render();
+    try{
+      const existing = await driveFindFile();
+      if(existing){
+        gDriveFileId = existing.id;
+        const remoteRaw = await driveDownload(existing.id);
+        const remoteData = JSON.parse(remoteRaw);
+        if(remoteData && Array.isArray(remoteData.articles) && remoteData.articles.length){
+          data = remoteData;
+          data.voicePrefs = data.voicePrefs || {};
+          data.vocab = data.vocab || {};
+          currentArticleId = data.articles[0].id;
+        } else {
+          await drivePush();
+        }
+      } else {
+        await drivePush();
+      }
+      if(sheet) sheet.driveMsg = 'Synced.';
+      await save();
+    }catch(e){
+      console.error(e);
+      if(sheet) sheet.driveMsg = 'Sync failed: ' + e.message;
+    }finally{
+      gDriveSyncing = false;
+      render();
+    }
+  }
+
+  function currentArticle(){
+    return data.articles.find(a => a.id === currentArticleId);
+  }
+  function currentVocab(){
+    return data.vocab[currentArticleId] || [];
+  }
+
+  function splitWords(text){
+    const words = [];
+    const re = /\S+/g;
+    let m;
+    while((m = re.exec(text)) !== null){
+      words.push({ text:m[0], start:m.index, end:m.index+m[0].length });
+    }
+    return words;
+  }
+  function splitSentenceStarts(text){
+    const starts = [0];
+    const re = /[.!?…]+\s+/g;
+    let m;
+    while((m = re.exec(text)) !== null){
+      const next = m.index + m[0].length;
+      if(next < text.length) starts.push(next);
+    }
+    return starts;
+  }
+  function splitParagraphs(text){
+    // paragraph boundaries = blank lines (one or more empty lines between blocks of text)
+    const paras = [];
+    const re = /\n\s*\n+/g;
+    let last = 0, m;
+    while((m = re.exec(text)) !== null){
+      paras.push({ start:last, end:m.index });
+      last = m.index + m[0].length;
+    }
+    paras.push({ start:last, end:text.length });
+    return paras;
+  }
+  function stripPunct(w){
+    return w.toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+  }
+  function sentenceContaining(text, charStart){
+    const starts = splitSentenceStarts(text);
+    let s = 0, idx = 0;
+    for(let i=0;i<starts.length;i++){ if(starts[i] <= charStart){ s = starts[i]; idx = i; } }
+    const end = (idx+1 < starts.length) ? starts[idx+1] : text.length;
+    return text.slice(s, end).trim();
+  }
+  function contextForTerm(term){
+    const art = currentArticle();
+    if(!art) return '';
+    const clean = stripPunct(term);
+    const words = splitWords(art.text);
+    const w = words.find(x => stripPunct(x.text) === clean);
+    if(!w) return art.text.slice(0,120);
+    return sentenceContaining(art.text, w.start);
+  }
+
+  async function callClaude(prompt){
+    // Inside a Claude artifact, this call is proxied automatically — no key needed.
+    // Outside Claude (a downloaded/deployed copy), it will fail without a key, so
+    // we fall back to a user-supplied key stored locally in this browser.
+    try{
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      if(res.ok){
+        const json = await res.json();
+        const block = (json.content || []).find(b => b.type === 'text');
+        if(block) return block.text;
+      }
+    }catch(e){ /* fall through to the direct-key path below */ }
+
+    if(!apiKey){
+      const err = new Error('no-api-key');
+      err.code = 'no-api-key';
+      throw err;
+    }
+    const res2 = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    if(!res2.ok){
+      const text = await res2.text().catch(() => '');
+      throw new Error('API error ' + res2.status + ': ' + text);
+    }
+    const json2 = await res2.json();
+    const block2 = (json2.content || []).find(b => b.type === 'text');
+    return block2 ? block2.text : '';
+  }
+
+  async function googleTranslateWord(word, sourceLangCode){
+    // Google Translate's public web endpoint — no API key required, CORS-friendly.
+    // Gives a plain translation only; it has no concept of "example sentences" or
+    // grammar notes, so those are left for the person to fill in by hand.
+    const src = (sourceLangCode || 'auto').split('-')[0];
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${src}&tl=en&dt=t&q=${encodeURIComponent(word)}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('translate failed: ' + res.status);
+    const json = await res.json();
+    const translated = (json[0] || []).map(seg => seg[0]).join('').trim();
+    if(!translated) throw new Error('empty translation');
+    return translated;
+  }
+
+  function cleanWikitextLine(line){
+    return line
+      .replace(/^#+\s?/, '')
+      .replace(/\{\{lb\|[a-z-]+\|([^}]*)\}\}/gi, '($1)')
+      .replace(/\{\{[^{}]*\}\}/g, '')
+      .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')
+      .replace(/'''?/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  async function wiktionaryDefinition(word, languageName){
+    // English Wiktionary documents foreign words under a language-name heading
+    // (e.g. "==French==") with plain-English glosses — a real dictionary, not
+    // machine translation, so it's often more accurate for words with several
+    // meanings. It has no reliable structured "examples" field worth parsing,
+    // so this only ever returns a definition.
+    const url = `https://en.wiktionary.org/w/api.php?action=parse&page=${encodeURIComponent(word)}&prop=wikitext&format=json&origin=*`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('Wiktionary request failed: ' + res.status);
+    const json = await res.json();
+    const wikitext = json && json.parse && json.parse.wikitext && json.parse.wikitext['*'];
+    if(!wikitext) throw new Error('not found on Wiktionary');
+    const langName = (languageName || '').trim();
+    const sectionRe = new RegExp('^==\\s*' + langName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*==\\s*$([\\s\\S]*?)(?=^==[^=]|$(?![\\s\\S]))', 'mi');
+    const match = wikitext.match(sectionRe);
+    const section = match ? match[1] : wikitext; // fall back to whole page if no matching language section
+    const lines = section.split('\n');
+    for(const raw of lines){
+      const t = raw.trim();
+      if(/^#(?![:*])/.test(t)){
+        const cleaned = cleanWikitextLine(t);
+        if(cleaned) return cleaned;
+      }
+    }
+    throw new Error('no definition found');
+  }
+
+  async function generateVocabInfo(word, contextSentence, language){
+    const prompt = `The word or phrase is "${word}", in ${language}, taken from this sentence: "${contextSentence}"
+
+Return ONLY a JSON object, no markdown code fences, no extra text, in exactly this shape:
+{"definition":"concise English meaning, a few words","examples":["example sentence 1 in ${language}","example sentence 2 in ${language}","example sentence 3 in ${language}"],"grammar":"one short grammar note - part of speech, gender, conjugation pattern, or usage tip"}
+
+The three examples must differ from each other and from the source sentence, be natural, and be appropriately simple for a language learner.`;
+    try{
+      let raw = await callClaude(prompt);
+      raw = raw.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(raw);
+      return {
+        definition: parsed.definition || '',
+        examples: Array.isArray(parsed.examples) ? parsed.examples.slice(0,3) : [],
+        grammar: parsed.grammar || ''
+      };
+    }catch(err){
+      if(err && err.code === 'no-api-key'){
+        // No Claude access available — try a real dictionary first (better
+        // for words with multiple meanings), then fall back to translation.
+        // Neither can supply example sentences or a grammar note.
+        let definition;
+        try{
+          definition = await wiktionaryDefinition(word, language);
+        }catch(e){
+          definition = await googleTranslateWord(word, langCodeFor(language));
+        }
+        return { definition, examples: [], grammar: '', partial: true };
+      }
+      throw err;
+    }
+  }
+
+  function speakText(text, language){
+    if(!text || !text.trim()) return;
+    window.speechSynthesis.cancel();
+    isPlaying = false; isPaused = false;
+    renderPlaybar();
+    const utter = new SpeechSynthesisUtterance(text);
+    const code = langCodeFor(language);
+    utter.lang = code;
+    const v = voiceFor(code);
+    if(v) utter.voice = v;
+    utter.rate = playbackRate;
+    window.speechSynthesis.speak(utter);
+  }
+
+  const SENTENCE_PAUSE_MS = 450; // brief breathing room between sentences
+  let gapTimeoutId = null;
+  let awaitingGapResume = null; // {charIndex, token} — set if paused during the inter-sentence gap
+
+  function stopSpeech(){
+    window.speechSynthesis.cancel();
+    isPlaying = false;
+    isPaused = false;
+    playToken++;
+    if(gapTimeoutId){ clearTimeout(gapTimeoutId); gapTimeoutId = null; }
+    awaitingGapResume = null;
+  }
+
+  function chunkEndFor(text, charStart, starts){
+    let idx = 0;
+    for(let i=0;i<starts.length;i++){ if(starts[i] <= charStart) idx = i; }
+    return (idx+1 < starts.length) ? starts[idx+1] : text.length;
+  }
+
+  function speakFrom(charIndex){
+    stopSpeech();
+    const art = currentArticle();
+    if(!art) return;
+    playFrom = charIndex;
+    isPlaying = true;
+    isPaused = false;
+    const myToken = playToken;
+    speakChunk(charIndex, myToken);
+  }
+
+  // Speaks one sentence at a time and chains into the next on completion,
+  // instead of one long utterance for the rest of the article. This means
+  // pausing/stopping only ever loses progress within the current sentence,
+  // and playFrom stays up to date as playback moves through the article.
+  function speakChunk(charIndex, token){
+    if(token !== playToken) return; // this playback session was superseded
+    const art = currentArticle();
+    if(!art || charIndex >= art.text.length){
+      isPlaying = false; isPaused = false;
+      playFrom = 0; // article finished — reset so the next Play press starts over
+      renderPlaybar();
+      return;
+    }
+    const starts = splitSentenceStarts(art.text);
+    const chunkEnd = chunkEndFor(art.text, charIndex, starts);
+    const slice = art.text.slice(charIndex, chunkEnd);
+    if(!slice.trim()){
+      speakChunk(chunkEnd, token);
+      return;
+    }
+    const utter = new SpeechSynthesisUtterance(slice);
+    const code = langCodeFor(art.language);
+    utter.lang = code;
+    const v = voiceFor(code);
+    if(v) utter.voice = v;
+    utter.rate = playbackRate;
+    utteranceRef = utter;
+    utter.onend = function(){
+      if(token !== playToken) return;
+      playFrom = chunkEnd;
+      gapTimeoutId = setTimeout(function(){
+        gapTimeoutId = null;
+        if(token !== playToken) return;
+        if(isPaused){
+          awaitingGapResume = { charIndex: chunkEnd, token };
+          return;
+        }
+        speakChunk(chunkEnd, token);
+      }, SENTENCE_PAUSE_MS);
+    };
+    utter.onerror = function(){
+      if(token !== playToken) return;
+      isPlaying = false; isPaused = false; renderPlaybar();
+    };
+    window.speechSynthesis.speak(utter);
+    renderPlaybar();
+  }
+
+  function togglePlay(){
+    if(isPlaying && !isPaused){
+      window.speechSynthesis.pause();
+      isPaused = true;
+      renderPlaybar();
+      // Some browsers (notably Chrome, with certain voices — often ones
+      // that aren't installed locally) silently ignore pause(). Verify it
+      // actually took effect; if not, stop the sentence outright so the
+      // button doesn't get stuck showing "paused" while audio keeps going.
+      setTimeout(function(){
+        if(isPaused && window.speechSynthesis.speaking && !window.speechSynthesis.paused){
+          stopSpeech();
+          renderPlaybar();
+        }
+      }, 150);
+    } else if(isPlaying && isPaused){
+      isPaused = false;
+      if(awaitingGapResume){
+        const resume = awaitingGapResume;
+        awaitingGapResume = null;
+        renderPlaybar();
+        speakChunk(resume.charIndex, resume.token);
+      } else {
+        window.speechSynthesis.resume();
+        renderPlaybar();
+      }
+    } else {
+      speakFrom(playFrom);
+      renderPlaybar();
+    }
+  }
+
+  function applyRate(newRate){
+    playbackRate = newRate;
+    if(isPlaying && !isPaused){
+      speakFrom(playFrom);
+    }
+  }
+  function onSpeedInput(val){
+    const label = document.getElementById('speed-label');
+    if(label) label.textContent = parseFloat(val).toFixed(2) + '×';
+  }
+  function onSpeedChange(val){
+    applyRate(parseFloat(val));
+  }
+
+  function replay(){
+    const art = currentArticle();
+    if(!art) return;
+    const starts = splitSentenceStarts(art.text);
+    let sentStart = 0;
+    for(const s of starts){ if(s <= playFrom) sentStart = s; }
+    speakFrom(sentStart);
+  }
+
+  function jumpSentence(dir){
+    const art = currentArticle();
+    if(!art) return;
+    const starts = splitSentenceStarts(art.text);
+    let idx = starts.findIndex(s => s === playFrom);
+    if(idx === -1){
+      idx = 0;
+      for(let i=0;i<starts.length;i++){ if(starts[i] <= playFrom) idx = i; }
+    }
+    const newIdx = Math.min(Math.max(idx + dir, 0), starts.length - 1);
+    speakFrom(starts[newIdx]);
+  }
+
+  function openAnnotate(wordIndex, wordText){
+    const art = currentArticle();
+    const clean = stripPunct(wordText);
+    const words = splitWords(art.text);
+    const w = words[wordIndex];
+    const context = sentenceContaining(art.text, w ? w.start : 0);
+    const existing = currentVocab().find(v => stripPunct(v.term) === clean);
+    if(existing){
+      sheet = { mode:'annotate', wordText: existing.term, def: existing.definition||'', examples: (existing.examples&&existing.examples.length ? existing.examples.slice() : ['']), grammar: existing.grammar||'', editId: existing.id, loading:false, wordIndex, contextSentence: context };
+      render();
+      return;
+    }
+    sheet = { mode:'annotate', wordText: clean, def:'', examples:['','',''], grammar:'', editId:null, loading:true, wordIndex, contextSentence: context };
+    render();
+    generateVocabInfo(clean, context, art.language).then(info => {
+      if(!sheet || sheet.wordIndex !== wordIndex) return;
+      sheet.def = info.definition;
+      sheet.examples = info.examples.length ? info.examples : ['','',''];
+      sheet.grammar = info.grammar;
+      sheet.loading = false;
+      sheet.partial = !!info.partial;
+      render();
+    }).catch(err => {
+      console.error(err);
+      if(!sheet || sheet.wordIndex !== wordIndex) return;
+      sheet.loading = false;
+      sheet.genError = (err && err.code === 'no-api-key') ? 'no-key' : true;
+      render();
+    });
+  }
+
+  function regenerate(){
+    if(!sheet) return;
+    collectSheetFormValues();
+    const art = currentArticle();
+    sheet.loading = true;
+    sheet.genError = false;
+    sheet.partial = false;
+    render();
+    const context = contextForTerm(sheet.wordText);
+    generateVocabInfo(sheet.wordText, context, art.language).then(info => {
+      if(!sheet) return;
+      sheet.def = info.definition;
+      sheet.examples = info.examples.length ? info.examples : sheet.examples;
+      sheet.grammar = info.grammar;
+      sheet.loading = false;
+      sheet.partial = !!info.partial;
+      render();
+    }).catch(err => {
+      console.error(err);
+      if(!sheet) return;
+      sheet.loading = false;
+      sheet.genError = (err && err.code === 'no-api-key') ? 'no-key' : true;
+      render();
+    });
+  }
+
+  function collectSheetFormValues(){
+    if(!sheet || sheet.mode !== 'annotate') return;
+    const defEl = document.getElementById('f-def');
+    if(defEl) sheet.def = defEl.value;
+    const gramEl = document.getElementById('f-grammar');
+    if(gramEl) sheet.grammar = gramEl.value;
+    sheet.examples = sheet.examples.map((ex,i) => {
+      const el = document.getElementById('f-example-'+i);
+      return el ? el.value : ex;
+    });
+  }
+
+  function addExampleRow(){
+    collectSheetFormValues();
+    sheet.examples.push('');
+    render();
+  }
+  function removeExampleRow(idx){
+    collectSheetFormValues();
+    sheet.examples.splice(idx,1);
+    render();
+  }
+  function playExample(idx){
+    collectSheetFormValues();
+    const art = currentArticle();
+    speakText(sheet.examples[idx], art ? art.language : 'English');
+  }
+  function playContextSentence(){
+    if(!sheet || !sheet.contextSentence) return;
+    const art = currentArticle();
+    speakText(sheet.contextSentence, art ? art.language : 'English');
+  }
+
+  function openAdd(){
+    sheet = { mode:'add', title:'', language:'', text:'', editId:null };
+    render();
+  }
+
+  function openEditArticle(){
+    const art = currentArticle();
+    if(!art) return;
+    sheet = { mode:'add', title:art.title, language:art.language, text:art.text, editId:art.id };
+    render();
+  }
+
+  async function saveAnnotation(){
+    const list = data.vocab[currentArticleId] || (data.vocab[currentArticleId] = []);
+    const cleanExamples = sheet.examples.map(e => e.trim()).filter(Boolean);
+    if(sheet.editId){
+      const item = list.find(v => v.id === sheet.editId);
+      item.term = sheet.wordText;
+      item.definition = sheet.def;
+      item.examples = cleanExamples;
+      item.grammar = sheet.grammar;
+    } else {
+      list.push({ id:uid(), term:sheet.wordText, definition:sheet.def, examples:cleanExamples, grammar:sheet.grammar, createdAt:Date.now() });
+    }
+    sheet = null;
+    await save();
+    render();
+  }
+
+  async function deleteAnnotation(){
+    if(!sheet.editId) { sheet = null; render(); return; }
+    const list = data.vocab[currentArticleId] || [];
+    data.vocab[currentArticleId] = list.filter(v => v.id !== sheet.editId);
+    sheet = null;
+    await save();
+    render();
+  }
+
+  async function addArticle(){
+    if(!sheet.text.trim() || !sheet.title.trim()) return;
+    if(sheet.editId){
+      const art = data.articles.find(a => a.id === sheet.editId);
+      if(art){
+        art.title = sheet.title.trim();
+        art.language = sheet.language.trim() || '—';
+        art.text = sheet.text.trim();
+        if(currentArticleId === art.id){
+          stopSpeech();
+          playFrom = 0;
+        }
+      }
+    } else {
+      const id = uid();
+      data.articles.push({ id, title:sheet.title.trim(), language:sheet.language.trim()||'—', text:sheet.text.trim(), icon:randomIcon(), createdAt:Date.now() });
+      data.vocab[id] = [];
+      currentArticleId = id;
+      playFrom = 0;
+      stopSpeech();
+    }
+    sheet = null;
+    await save();
+    render();
+  }
+
+  function requestDeleteArticle(){
+    if(!sheet || !sheet.editId) return;
+    sheet.confirmingDelete = true;
+    render();
+  }
+  function cancelDeleteArticle(){
+    if(!sheet) return;
+    sheet.confirmingDelete = false;
+    render();
+  }
+  async function deleteArticle(){
+    if(!sheet || !sheet.editId) return;
+    const id = sheet.editId;
+    data.articles = data.articles.filter(a => a.id !== id);
+    delete data.vocab[id];
+    if(currentArticleId === id){
+      stopSpeech();
+      currentArticleId = data.articles.length ? data.articles[0].id : null;
+      playFrom = 0;
+    }
+    sheet = null;
+    await save();
+    render();
+  }
+
+  function switchArticle(id){
+    if(id === currentArticleId) return;
+    stopSpeech();
+    currentArticleId = id;
+    playFrom = 0;
+    render();
+  }
+
+  function editArticleById(id){
+    if(id !== currentArticleId) switchArticle(id);
+    openEditArticle();
+  }
+
+  function toggleLibrary(){
+    libraryOpen = !libraryOpen;
+    render();
+  }
+
+  function esc(s){
+    return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function iconPlay(){ return isPlaying && !isPaused ? '❚❚' : '▶'; }
+
+  function renderPlaybar(){
+    const el = document.getElementById('playbar-slot');
+    if(!el) return;
+    const art = currentArticle();
+    const starts = art ? splitSentenceStarts(art.text) : [];
+    let idx = 0;
+    for(let i=0;i<starts.length;i++){ if(starts[i] <= playFrom) idx = i; }
+    el.innerHTML = `
+      <button title="Previous sentence" onclick="MG.jumpSentence(-1)">⏮</button>
+      <button class="main" title="Play / pause" onclick="MG.togglePlay()">${iconPlay()}</button>
+      <button title="Replay this sentence" onclick="MG.replay()">↺</button>
+      <button title="Next sentence" onclick="MG.jumpSentence(1)">⏭</button>
+      <button title="Choose voice" onclick="MG.openVoicePicker()">🔊</button>
+      <div class="speed-control" title="Playback speed">
+        <input type="range" min="0.5" max="1.5" step="0.05" value="${playbackRate}"
+          oninput="MG.onSpeedInput(this.value)" onchange="MG.onSpeedChange(this.value)">
+        <span class="speed-label" id="speed-label">${playbackRate.toFixed(2)}×</span>
+      </div>
+      <span class="sentence-pos">${starts.length ? (idx+1)+' / '+starts.length : ''}</span>
+    `;
+  }
+
+  function renderReadingPaneOnly(){
+    const el = document.getElementById('reading-pane');
+    if(!el) return;
+    const art = currentArticle();
+    if(!art){ el.innerHTML = '<div class="empty-state">No article yet. Add one to start reading.</div>'; return; }
+    const words = splitWords(art.text);
+    const paraRanges = splitParagraphs(art.text);
+    const annotatedTerms = new Set(currentVocab().map(v => stripPunct(v.term)));
+    let wIdx = 0;
+    const paraHtmls = [];
+    for(const para of paraRanges){
+      const spans = [];
+      while(wIdx < words.length && words[wIdx].start < para.end){
+        const w = words[wIdx];
+        const i = wIdx;
+        const clean = stripPunct(w.text);
+        const cls = ['word'];
+        if(annotatedTerms.has(clean)) cls.push('annotated');
+        spans.push(`<span class="${cls.join(' ')}" onclick="MG.openAnnotate(${i}, '${esc(w.text).replace(/'/g,"\\'")}')">${esc(w.text)}</span>`);
+        wIdx++;
+      }
+      if(spans.length) paraHtmls.push(`<p>${spans.join(' ')}</p>`);
+    }
+    el.innerHTML = paraHtmls.join('');
+  }
+
+  function renderVocabList(){
+    const el = document.getElementById('vocab-slot');
+    if(!el) return;
+    const list = currentVocab();
+    const header = `
+      <div class="vocab-header" onclick="MG.toggleVocab()">
+        <span class="vocab-title">Saved vocabulary</span>
+        <span class="vocab-count">${list.length}</span>
+      </div>
+    `;
+    if(!vocabOpen){ el.innerHTML = header; return; }
+    if(list.length === 0){
+      el.innerHTML = header + `<div class="hint">Tap any word in the article to save a definition, example, or grammar note.</div>`;
+      return;
+    }
+    const items = list.slice().sort((a,b)=>b.createdAt-a.createdAt).map(v => `
+      <div class="vocab-item" onclick="MG.openExisting('${v.id}')">
+        <div class="term">${esc(v.term)}</div>
+        <div class="def">${esc(v.definition || 'No definition yet')}</div>
+      </div>
+    `).join('');
+    el.innerHTML = header + `<div class="vocab-list">${items}</div>`;
+  }
+
+  function openExisting(id){
+    const item = currentVocab().find(v => v.id === id);
+    if(!item) return;
+    sheet = { mode:'annotate', wordText:item.term, def:item.definition||'', examples:(item.examples&&item.examples.length?item.examples.slice():['']), grammar:item.grammar||'', editId:item.id, loading:false, contextSentence: contextForTerm(item.term) };
+    render();
+  }
+
+  function toggleVocab(){
+    vocabOpen = !vocabOpen;
+    renderVocabList();
+  }
+
+  function renderSheet(){
+    if(!sheet) return '';
+    if(sheet.mode === 'annotate'){
+      const exRows = sheet.examples.map((ex,i) => `
+        <div class="example-row">
+          <input type="text" id="f-example-${i}" value="${esc(ex)}" placeholder="Example sentence ${i+1}">
+          <button class="icon-btn" title="Read aloud" onclick="MG.playExample(${i})">▶</button>
+          <button class="icon-btn" title="Remove" onclick="MG.removeExampleRow(${i})">×</button>
+        </div>
+      `).join('');
+      return `
+        <div class="overlay" onclick="MG.closeSheetIfBackdrop(event)">
+          <div class="sheet sheet-wrap">
+            <button class="sheet-close" onclick="MG.closeSheet()">×</button>
+            <button class="regen-btn" title="Regenerate" onclick="MG.regenerate()">↻</button>
+            <div class="sheet-title">${esc(sheet.wordText)}</div>
+            ${sheet.contextSentence ? `
+              <label>From the article</label>
+              <div class="example-row">
+                <div class="context-text">${esc(sheet.contextSentence)}</div>
+                <button class="icon-btn" title="Read aloud" onclick="MG.playContextSentence()">▶</button>
+              </div>
+            ` : ''}
+            ${sheet.loading ? '<div class="loading-row">Looking up meaning and examples…</div>' : ''}
+            ${sheet.genError === 'no-key' ? '<div class="loading-row" style="color:var(--err)">No Anthropic API key set — add one in ⚙ Settings to enable auto-lookup outside Claude, or fill in manually below.</div>' : ''}
+            ${sheet.genError === true ? '<div class="loading-row" style="color:var(--err)">Couldn\u2019t generate automatically — fill in manually.</div>' : ''}
+            ${sheet.partial ? '<div class="loading-row">Meaning looked up from a free dictionary/translation source (no API key set) — examples and grammar note are left blank for you to fill in, or add a key in ⚙ Settings for full auto-generation.</div>' : ''}
+            <label>English meaning</label>
+            <input type="text" id="f-def" value="${esc(sheet.def)}" placeholder="What does this mean?">
+            <label>Examples</label>
+            ${exRows}
+            <button class="add-example-btn" onclick="MG.addExampleRow()">+ Add example</button>
+            <label>Grammar note</label>
+            <textarea id="f-grammar" placeholder="Gender, conjugation, usage tip…">${esc(sheet.grammar)}</textarea>
+            <div class="sheet-actions">
+              ${sheet.editId ? '<button class="delete" onclick="MG.deleteAnnotation()">Delete</button>' : ''}
+              <button onclick="MG.closeSheet()">Cancel</button>
+              <button class="save" onclick="MG.saveAnnotationFromForm()">Save</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    if(sheet.mode === 'settings'){
+      return `
+        <div class="overlay" onclick="MG.closeSheetIfBackdrop(event)">
+          <div class="sheet sheet-wrap">
+            <button class="sheet-close" onclick="MG.closeSheet()">×</button>
+            <div class="sheet-title">Settings</div>
+            <label>Anthropic API key</label>
+            <input type="text" id="f-apikey" value="${esc(sheet.apiKeyInput)}" placeholder="sk-ant-...">
+            <div class="hint" style="margin-top:8px;">Only needed when running this file outside Claude — for example downloaded and opened locally, or deployed to a host. Inside Claude, word lookup works automatically without a key. Get one at console.anthropic.com. It's stored only in this browser and sent directly to Anthropic when looking up a word.</div>
+            <div class="sheet-actions">
+              ${apiKey ? '<button class="delete" onclick="MG.clearApiKey()">Remove key</button>' : ''}
+              <button onclick="MG.closeSheet()">Cancel</button>
+              <button class="save" onclick="MG.saveApiKey()">Save</button>
+            </div>
+
+            <label style="margin-top:22px;">Google Drive sync</label>
+            <input type="text" id="f-gdrive-client" value="${esc(gDriveClientId)}" placeholder="OAuth Client ID (....apps.googleusercontent.com)">
+            <div class="hint" style="margin-top:8px;">Syncs your articles and vocabulary across devices via a file in your own Google Drive. Requires a free OAuth Client ID you create yourself in Google Cloud Console, and this page must be hosted at a real URL (not opened as a local file). Ask me for setup steps if you haven't done this before.</div>
+            <div class="sheet-actions">
+              <button onclick="MG.saveGDriveClientId()">Save Client ID</button>
+              ${gDriveClientId ? `<button class="save" onclick="MG.connectGoogleDrive()">${gDriveConnected ? 'Reconnect' : 'Connect Drive'}</button>` : ''}
+              ${gDriveConnected ? '<button class="delete" onclick="MG.disconnectGoogleDrive()">Disconnect</button>' : ''}
+            </div>
+            ${gDriveSyncing ? '<div class="loading-row">Syncing with Google Drive…</div>' : ''}
+            ${gDriveConnected && !gDriveSyncing ? '<div class="loading-row" style="color:var(--moss);">Connected — changes now sync to Drive automatically.</div>' : ''}
+            ${sheet.driveMsg ? `<div class="loading-row">${esc(sheet.driveMsg)}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+    if(sheet.mode === 'voice'){
+      const short = sheet.langCode.split('-')[0].toLowerCase();
+      const matches = voiceList.filter(v => v.lang && v.lang.toLowerCase().startsWith(short));
+      const currentPref = data.voicePrefs && data.voicePrefs[sheet.langCode];
+      const activeVoice = voiceFor(sheet.langCode);
+      const rows = matches.length ? matches.map(v => `
+        <div class="voice-row ${activeVoice && v.voiceURI === activeVoice.voiceURI ? 'active' : ''}">
+          <div class="voice-info" onclick="MG.selectVoice('${sheet.langCode}', '${esc(v.voiceURI).replace(/'/g,"\\'")}')">
+            <div class="voice-name">${esc(v.name)}</div>
+            <div class="voice-lang">${esc(v.lang)}${v.localService ? '' : ' · online'}</div>
+          </div>
+          <button class="icon-btn" title="Preview" onclick="event.stopPropagation(); MG.previewVoice('${esc(v.voiceURI).replace(/'/g,"\\'")}')">▶</button>
+        </div>
+      `).join('') : `<div class="hint" style="margin-top:0;">No voices found for ${esc(sheet.langCode)} on this device. Check your OS speech/language settings and try again.</div>`;
+      return `
+        <div class="overlay" onclick="MG.closeSheetIfBackdrop(event)">
+          <div class="sheet sheet-wrap">
+            <button class="sheet-close" onclick="MG.closeSheet()">×</button>
+            <div class="sheet-title">Voice for ${esc(sheet.langCode)}</div>
+            <div class="voice-list">${rows}</div>
+            ${currentPref ? `<button class="add-example-btn" onclick="MG.resetVoice('${sheet.langCode}')">Reset to device default</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+    if(sheet.mode === 'add'){
+      if(sheet.confirmingDelete){
+        return `
+          <div class="overlay" onclick="MG.closeSheetIfBackdrop(event)">
+            <div class="sheet sheet-wrap">
+              <button class="sheet-close" onclick="MG.closeSheet()">×</button>
+              <div class="sheet-title">Delete "${esc(sheet.title)}"?</div>
+              <div class="loading-row" style="color:var(--err)">This removes the article and all vocabulary you've saved for it. This can't be undone.</div>
+              <div class="sheet-actions">
+                <button onclick="MG.cancelDeleteArticle()">Cancel</button>
+                <button class="save" style="background:var(--err);border-color:var(--err);" onclick="MG.deleteArticle()">Delete article</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div class="overlay" onclick="MG.closeSheetIfBackdrop(event)">
+          <div class="sheet sheet-wrap">
+            <button class="sheet-close" onclick="MG.closeSheet()">×</button>
+            <div class="sheet-title">${sheet.editId ? 'Edit article' : 'New article'}</div>
+            <label>Title</label>
+            <input type="text" id="f-title" value="${esc(sheet.title)}" placeholder="e.g. Le marché aux fleurs">
+            <label>Language</label>
+            <input type="text" id="f-lang" value="${esc(sheet.language)}" placeholder="e.g. French">
+            <label>Article text</label>
+            <textarea id="f-text" style="min-height:140px" placeholder="Paste the article text here…">${esc(sheet.text)}</textarea>
+            <div class="sheet-actions">
+              ${sheet.editId ? '<button class="delete" onclick="MG.requestDeleteArticle()">Delete</button>' : ''}
+              <button onclick="MG.closeSheet()">Cancel</button>
+              <button class="save" onclick="MG.addArticleFromForm()">${sheet.editId ? 'Save changes' : 'Add article'}</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    return '';
+  }
+
+  function closeSheet(){ sheet = null; render(); }
+  function closeSheetIfBackdrop(e){ if(e.target.classList.contains('overlay')) closeSheet(); }
+
+  function saveAnnotationFromForm(){
+    collectSheetFormValues();
+    saveAnnotation();
+  }
+  function addArticleFromForm(){
+    sheet.title = document.getElementById('f-title').value;
+    sheet.language = document.getElementById('f-lang').value;
+    sheet.text = document.getElementById('f-text').value;
+    addArticle();
+  }
+
+  function render(){
+    const app = document.getElementById('app');
+    const art = currentArticle();
+    app.innerHTML = `
+      <div class="app-header">
+        <div>
+          <div class="app-title">Lingo <span>Book</span></div>
+          <div class="app-sub">Read, listen, annotate — one article at a time</div>
+        </div>
+        <button class="icon-btn" title="Settings" onclick="MG.openSettings()">⚙</button>
+      </div>
+
+      <div class="library-section">
+        <div class="library-header">
+          <div class="library-toggle" onclick="MG.toggleLibrary()">
+            <span class="library-title">Your articles</span>
+            <span class="library-count">${data.articles.length}</span>
+          </div>
+          <button class="btn-add" onclick="MG.openAdd()">+ Article</button>
+        </div>
+        ${libraryOpen ? (data.articles.length ? `
+          <div class="library-list">
+            ${data.articles.map(a => `
+              <div class="article-item ${a.id===currentArticleId ? 'active' : ''}">
+                <span class="article-icon">${a.icon || '📖'}</span>
+                <div class="article-info" onclick="MG.switchArticle('${a.id}')">
+                  <div class="article-name">${esc(a.title)}</div>
+                  <div class="article-lang">${esc(a.language)}</div>
+                </div>
+                <button class="icon-btn" title="Edit" onclick="event.stopPropagation(); MG.editArticleById('${a.id}')">✎</button>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<div class="hint" style="margin-top:0;">No articles yet — add one to start reading.</div>') : ''}
+      </div>
+
+      <div class="playbar" id="playbar-slot"></div>
+
+      <div class="reading-pane" id="reading-pane"></div>
+
+      <div class="vocab-section" id="vocab-slot"></div>
+
+      <div class="hint">Playback uses your browser's built-in speech voices — quality varies by browser and by which voices are installed on your device.</div>
+
+      ${renderSheet()}
+    `;
+    renderPlaybar();
+    renderReadingPaneOnly();
+    renderVocabList();
+  }
+
+  window.MG = {
+    togglePlay, replay, jumpSentence, openAnnotate, openAdd, switchArticle,
+    closeSheet, closeSheetIfBackdrop, saveAnnotationFromForm, addArticleFromForm,
+    deleteAnnotation, openExisting, toggleVocab, regenerate, addExampleRow,
+    removeExampleRow, playExample, playContextSentence, onSpeedInput, onSpeedChange,
+    openEditArticle, deleteArticle, editArticleById, toggleLibrary,
+    requestDeleteArticle, cancelDeleteArticle,
+    openVoicePicker, selectVoice, resetVoice, previewVoice,
+    openSettings, saveApiKey, clearApiKey,
+    saveGDriveClientId, connectGoogleDrive, disconnectGoogleDrive
+  };
+
+  load();
+  loadApiKey();
+  loadGDriveClientId();
+})();
+</script>
+</body>
+</html>
