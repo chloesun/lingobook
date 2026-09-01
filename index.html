@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lingo Book — reading &amp; vocabulary</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
@@ -530,6 +533,14 @@ body{
   let gDriveSyncing = false;
   const GDRIVE_FILE_NAME = 'marginalia-data.json';
 
+  // Live collaboration (Firebase) — a shared library both people read/write
+  // in real time, replacing the local/Drive data source while connected.
+  let fbConfig = null;
+  let fbApp = null, fbAuth = null, fbDb = null;
+  let fbUser = null;
+  let fbConnected = false;
+  let fbUnsubArticles = null, fbUnsubVocab = null;
+
   const sampleText = "Le marché aux fleurs ouvre tôt, avant que la ville ne se réveille vraiment. Les vendeurs installent leurs étals avec des gestes lents, presque rituels. Une odeur de café se mêle à celle des roses et du jasmin. Les habitants du quartier viennent chaque semaine, non pas pour acheter, mais pour retrouver ce moment de calme avant la journée.";
 
   const ARTICLE_ICONS = ['📖','🖋️','🗞️','🕰️','🍂','🌿','🕯️','☕','🌙','⭐','🧭','🔖','🪶','🎭','🗝️','🌾','🍃','🧵','🎨','🧩','🦢','🐚','🌻','🍁'];
@@ -684,7 +695,7 @@ body{
     }catch(e){ /* not set yet */ }
   }
   function openSettings(){
-    sheet = { mode:'settings', apiKeyInput: apiKey, driveMsg: null };
+    sheet = { mode:'settings', apiKeyInput: apiKey, driveMsg: null, fbMsg: null };
     render();
   }
   async function saveApiKey(){
@@ -868,6 +879,166 @@ body{
       gDriveSyncing = false;
       render();
     }
+  }
+
+  const FB_CONFIG_STORE = 'marginalia-firebase-config';
+  async function loadFirebaseConfig(){
+    try{
+      const res = await window.storage.get(FB_CONFIG_STORE, false);
+      if(res && res.value){
+        fbConfig = JSON.parse(res.value);
+        initFirebaseApp();
+      }
+    }catch(e){ /* not set yet */ }
+  }
+
+  function initFirebaseApp(){
+    if(!fbConfig || fbApp) return;
+    try{
+      fbApp = firebase.initializeApp(fbConfig);
+      fbAuth = firebase.auth();
+      fbDb = firebase.firestore();
+      fbAuth.onAuthStateChanged((user) => {
+        fbUser = user;
+        if(user){
+          connectFirebaseData();
+        }else{
+          disconnectFirebaseData();
+        }
+        render();
+      });
+    }catch(e){
+      console.error('Firebase init failed', e);
+      if(sheet) sheet.fbMsg = 'Firebase init failed: ' + e.message;
+    }
+  }
+
+  function saveFirebaseConfig(){
+    const raw = document.getElementById('f-fbconfig').value.trim();
+    if(!raw){
+      fbConfig = null;
+      (async () => { try{ await window.storage.delete(FB_CONFIG_STORE, false); }catch(e){} })();
+      if(sheet) sheet.fbMsg = 'Config cleared.';
+      render();
+      return;
+    }
+    try{
+      fbConfig = JSON.parse(raw);
+    }catch(e){
+      if(sheet) sheet.fbMsg = 'That doesn\u2019t look like valid JSON \u2014 paste the whole firebaseConfig object from your Firebase project settings.';
+      render();
+      return;
+    }
+    (async () => {
+      try{ await window.storage.set(FB_CONFIG_STORE, JSON.stringify(fbConfig), false); }catch(e){ console.error(e); }
+    })();
+    fbApp = null; // force re-init with the new config
+    initFirebaseApp();
+    if(sheet) sheet.fbMsg = 'Config saved.';
+    render();
+  }
+
+  // Shared access password — stored in Firestore so it can be changed from
+  // the app itself without editing code or redeploying. Note this remains a
+  // soft gate enforced by the app's own UI, not something Firebase verifies
+  // server-side — real protection here is knowing the Firebase config at all,
+  // same caveat as before, just now with a conveniently changeable password.
+  async function signInFirebase(){
+    if(!fbConfig){
+      if(sheet) sheet.fbMsg = 'Save your Firebase config first.';
+      render();
+      return;
+    }
+    const input = document.getElementById('f-fbpassword');
+    const typed = input ? input.value : '';
+    if(!typed){
+      if(sheet) sheet.fbMsg = 'Enter the shared password.';
+      render();
+      return;
+    }
+    if(!fbAuth) initFirebaseApp();
+    try{
+      await fbAuth.signInAnonymously();
+      const ref = fbDb.collection('settings').doc('access');
+      const doc = await ref.get();
+      if(!doc.exists){
+        // Nobody has connected before — this becomes the canonical password.
+        await ref.set({ password: typed });
+      } else if(doc.data().password !== typed){
+        await fbAuth.signOut();
+        if(sheet) sheet.fbMsg = 'Incorrect password.';
+        render();
+        return;
+      }
+      if(sheet) sheet.fbMsg = null;
+      render();
+    }catch(e){
+      console.error(e);
+      if(sheet) sheet.fbMsg = 'Connection failed: ' + e.message;
+      render();
+    }
+  }
+
+  async function updateSharedPassword(){
+    if(!fbConnected || !fbDb) return;
+    const input = document.getElementById('f-fbnewpassword');
+    const newVal = input ? input.value.trim() : '';
+    if(!newVal){
+      if(sheet) sheet.fbMsg = 'Enter a new password first.';
+      render();
+      return;
+    }
+    try{
+      await fbDb.collection('settings').doc('access').set({ password: newVal });
+      if(input) input.value = '';
+      if(sheet) sheet.fbMsg = 'Password updated — let your teacher know the new one.';
+      render();
+    }catch(e){
+      console.error(e);
+      if(sheet) sheet.fbMsg = 'Update failed: ' + e.message;
+      render();
+    }
+  }
+
+  function signOutFirebase(){
+    if(fbAuth) fbAuth.signOut();
+  }
+
+  function connectFirebaseData(){
+    if(!fbDb || fbUnsubArticles) return; // already connected
+    fbConnected = true;
+    stopSpeech();
+    fbUnsubArticles = fbDb.collection('articles').orderBy('createdAt').onSnapshot((snapshot) => {
+      const articles = [];
+      snapshot.forEach(doc => articles.push(Object.assign({ id: doc.id }, doc.data())));
+      data.articles = articles;
+      if(!currentArticleId || !articles.find(a => a.id === currentArticleId)){
+        currentArticleId = articles.length ? articles[0].id : null;
+      }
+      render();
+    }, (err) => {
+      console.error('articles listener failed', err);
+      if(sheet) sheet.fbMsg = 'Live sync error: ' + err.message;
+      render();
+    });
+    fbUnsubVocab = fbDb.collection('vocab').onSnapshot((snapshot) => {
+      const byArticle = {};
+      snapshot.forEach(doc => {
+        const v = Object.assign({ id: doc.id }, doc.data());
+        if(!byArticle[v.articleId]) byArticle[v.articleId] = [];
+        byArticle[v.articleId].push(v);
+      });
+      data.vocab = byArticle;
+      render();
+    }, (err) => {
+      console.error('vocab listener failed', err);
+    });
+  }
+
+  function disconnectFirebaseData(){
+    fbConnected = false;
+    if(fbUnsubArticles){ fbUnsubArticles(); fbUnsubArticles = null; }
+    if(fbUnsubVocab){ fbUnsubVocab(); fbUnsubVocab = null; }
   }
 
   function currentArticle(){
@@ -1325,8 +1496,25 @@ The three examples must differ from each other and from the source sentence, be 
   }
 
   async function saveAnnotation(){
-    const list = data.vocab[currentArticleId] || (data.vocab[currentArticleId] = []);
     const cleanExamples = sheet.examples.map(e => e.trim()).filter(Boolean);
+    if(fbConnected){
+      try{
+        if(sheet.editId){
+          await fbDb.collection('vocab').doc(sheet.editId).update({
+            term: sheet.wordText, definition: sheet.def, examples: cleanExamples, grammar: sheet.grammar
+          });
+        } else {
+          await fbDb.collection('vocab').add({
+            articleId: currentArticleId, term: sheet.wordText, definition: sheet.def,
+            examples: cleanExamples, grammar: sheet.grammar, createdAt: Date.now()
+          });
+        }
+      }catch(e){ console.error('Firestore save failed', e); }
+      sheet = null;
+      render();
+      return;
+    }
+    const list = data.vocab[currentArticleId] || (data.vocab[currentArticleId] = []);
     if(sheet.editId){
       const item = list.find(v => v.id === sheet.editId);
       item.term = sheet.wordText;
@@ -1343,6 +1531,12 @@ The three examples must differ from each other and from the source sentence, be 
 
   async function deleteAnnotation(){
     if(!sheet.editId) { sheet = null; render(); return; }
+    if(fbConnected){
+      try{ await fbDb.collection('vocab').doc(sheet.editId).delete(); }catch(e){ console.error(e); }
+      sheet = null;
+      render();
+      return;
+    }
     const list = data.vocab[currentArticleId] || [];
     data.vocab[currentArticleId] = list.filter(v => v.id !== sheet.editId);
     sheet = null;
@@ -1352,6 +1546,27 @@ The three examples must differ from each other and from the source sentence, be 
 
   async function addArticle(){
     if(!sheet.text.trim() || !sheet.title.trim()) return;
+    if(fbConnected){
+      try{
+        if(sheet.editId){
+          await fbDb.collection('articles').doc(sheet.editId).update({
+            title: sheet.title.trim(), language: sheet.language.trim() || '—', text: sheet.text.trim()
+          });
+          if(currentArticleId === sheet.editId){ stopSpeech(); playFrom = 0; }
+        } else {
+          const docRef = await fbDb.collection('articles').add({
+            title: sheet.title.trim(), language: sheet.language.trim() || '—',
+            text: sheet.text.trim(), icon: randomIcon(), createdAt: Date.now()
+          });
+          currentArticleId = docRef.id;
+          playFrom = 0;
+          stopSpeech();
+        }
+      }catch(e){ console.error('Firestore save failed', e); }
+      sheet = null;
+      render();
+      return;
+    }
     if(sheet.editId){
       const art = data.articles.find(a => a.id === sheet.editId);
       if(art){
@@ -1389,6 +1604,19 @@ The three examples must differ from each other and from the source sentence, be 
   async function deleteArticle(){
     if(!sheet || !sheet.editId) return;
     const id = sheet.editId;
+    if(fbConnected){
+      try{
+        await fbDb.collection('articles').doc(id).delete();
+        const orphans = await fbDb.collection('vocab').where('articleId', '==', id).get();
+        const batch = fbDb.batch();
+        orphans.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+      }catch(e){ console.error('Firestore delete failed', e); }
+      if(currentArticleId === id){ stopSpeech(); playFrom = 0; }
+      sheet = null;
+      render();
+      return;
+    }
     data.articles = data.articles.filter(a => a.id !== id);
     delete data.vocab[id];
     if(currentArticleId === id){
@@ -1578,6 +1806,30 @@ The three examples must differ from each other and from the source sentence, be 
             ${gDriveSyncing ? '<div class="loading-row">Syncing with Google Drive…</div>' : ''}
             ${gDriveConnected && !gDriveSyncing ? '<div class="loading-row" style="color:var(--moss);">Connected — changes now sync to Drive automatically.</div>' : ''}
             ${sheet.driveMsg ? `<div class="loading-row">${esc(sheet.driveMsg)}</div>` : ''}
+
+            <label style="margin-top:22px;">Live collaboration (Firebase)</label>
+            <textarea id="f-fbconfig" style="min-height:90px;font-family:monospace;font-size:12.5px;" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...", ...}'>${fbConfig ? esc(JSON.stringify(fbConfig, null, 2)) : ''}</textarea>
+            <div class="hint" style="margin-top:8px;">Turns your library into a shared space that updates live for everyone connected — meant for two people (e.g. you and your teacher) editing the same articles and vocab together. This replaces Drive sync while connected. Requires a free Firebase project you create yourself; paste the config object from your project settings.</div>
+            <div class="sheet-actions">
+              <button onclick="MG.saveFirebaseConfig()">Save config</button>
+            </div>
+            ${fbConfig && !fbUser ? `
+              <label style="margin-top:14px;">Shared access password</label>
+              <input type="password" id="f-fbpassword" placeholder="First time connecting? Choose one — it becomes the shared password">
+              <div class="sheet-actions">
+                <button class="save" onclick="MG.signInFirebase()">Connect</button>
+              </div>
+            ` : ''}
+            ${fbUser ? `
+              <div class="loading-row" style="color:var(--moss);">Connected — live sync active.</div>
+              <label style="margin-top:14px;">Change shared password</label>
+              <input type="password" id="f-fbnewpassword" placeholder="New password">
+              <div class="sheet-actions">
+                <button onclick="MG.updateSharedPassword()">Update password</button>
+                <button class="delete" onclick="MG.signOutFirebase()">Disconnect</button>
+              </div>
+            ` : ''}
+            ${sheet.fbMsg ? `<div class="loading-row">${esc(sheet.fbMsg)}</div>` : ''}
           </div>
         </div>
       `;
@@ -1667,7 +1919,7 @@ The three examples must differ from each other and from the source sentence, be 
       <div class="app-header">
         <div>
           <div class="app-title">Lingo <span>Book</span></div>
-          <div class="app-sub">Read, listen, annotate — one article at a time</div>
+          <div class="app-sub">${fbUser ? 'Live shared library — connected' : 'Read, listen, annotate — one article at a time'}</div>
         </div>
         <button class="icon-btn" title="Settings" onclick="MG.openSettings()">⚙</button>
       </div>
@@ -1720,12 +1972,14 @@ The three examples must differ from each other and from the source sentence, be 
     requestDeleteArticle, cancelDeleteArticle,
     openVoicePicker, selectVoice, resetVoice, previewVoice,
     openSettings, saveApiKey, clearApiKey,
-    saveGDriveClientId, connectGoogleDrive, disconnectGoogleDrive
+    saveGDriveClientId, connectGoogleDrive, disconnectGoogleDrive,
+    saveFirebaseConfig, signInFirebase, signOutFirebase, updateSharedPassword
   };
 
   load();
   loadApiKey();
   loadGDriveClientId();
+  loadFirebaseConfig();
 })();
 </script>
 </body>
