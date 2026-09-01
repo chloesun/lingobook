@@ -1682,14 +1682,10 @@ The three examples must differ from each other and from the source sentence, be 
           <div class="sheet sheet-wrap">
             <button class="sheet-close" onclick="MG.closeSheet()">×</button>
             <button class="regen-btn" title="Regenerate" onclick="MG.regenerate()">↻</button>
-            <div class="sheet-title">${esc(sheet.wordText)}</div>
-            ${sheet.contextSentence ? `
-              <label>From the article</label>
-              <div class="example-row">
-                <div class="context-text">${esc(sheet.contextSentence)}</div>
-                <button class="icon-btn" title="Read aloud" onclick="MG.playContextSentence()">▶</button>
-              </div>
-            ` : ''}
+            <div class="sheet-title" style="display:flex;align-items:center;gap:10px;">
+              ${esc(sheet.wordText)}
+              ${sheet.contextSentence ? `<button class="icon-btn" title="Read aloud" onclick="MG.playContextSentence()" style="font-size:13px;flex:0 0 auto;">▶</button>` : ''}
+            </div>
             ${sheet.loading ? '<div class="loading-row">Looking up meaning and examples…</div>' : ''}
             ${sheet.genError === 'no-key' ? '<div class="loading-row" style="color:var(--err)">No Anthropic API key set — add one in ⚙ Settings to enable auto-lookup outside Claude, or fill in manually below.</div>' : ''}
             ${sheet.genError === true ? '<div class="loading-row" style="color:var(--err)">Couldn\u2019t generate automatically — fill in manually.</div>' : ''}
