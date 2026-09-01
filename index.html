@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lingo Book — reading &amp; vocabulary</title>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
@@ -313,6 +312,8 @@ body{
   background:var(--paper);
   width:100%;
   max-width:520px;
+  max-height:85vh;
+  overflow-y:auto;
   border-radius:10px 10px 0 0;
   padding:20px 20px 24px;
   border-top:1px solid var(--line);
@@ -511,7 +512,8 @@ body{
     };
   }
 
-  const STORE_KEY = 'marginalia-data';
+  const STORE_KEY = 'lingobook-data';
+  const LEGACY_STORE_KEY = 'marginalia-data';
   let data = { articles: [], vocab: {} };
   let currentArticleId = null;
   let playFrom = 0;
@@ -525,16 +527,9 @@ body{
   let playbackRate = 0.85;
   let playToken = 0;
   let apiKey = '';
-  let gDriveClientId = '';
-  let gDriveTokenClient = null;
-  let gDriveAccessToken = null;
-  let gDriveConnected = false;
-  let gDriveFileId = null;
-  let gDriveSyncing = false;
-  const GDRIVE_FILE_NAME = 'marginalia-data.json';
 
   // Live collaboration (Firebase) — a shared library both people read/write
-  // in real time, replacing the local/Drive data source while connected.
+  // in real time.
   let fbConfig = null;
   let fbApp = null, fbAuth = null, fbDb = null;
   let fbUser = null;
@@ -647,7 +642,14 @@ body{
         data = JSON.parse(res.value);
       }
     }catch(e){
-      // no data yet
+      // not found under the new key — check the old name (from before the app was renamed) and migrate it
+      try{
+        const legacy = await window.storage.get(LEGACY_STORE_KEY, false);
+        if(legacy && legacy.value){
+          data = JSON.parse(legacy.value);
+          await window.storage.set(STORE_KEY, legacy.value, false);
+        }
+      }catch(e2){ /* no data yet, either way */ }
     }
     if(!data.articles || data.articles.length === 0){
       const id = uid();
@@ -684,18 +686,26 @@ body{
     }catch(e){
       console.error('storage failed', e);
     }
-    if(gDriveConnected){ drivePush(); } // fire-and-forget; doesn't block the UI
   }
 
-  const API_KEY_STORE = 'marginalia-api-key';
+  const API_KEY_STORE = 'lingobook-api-key';
+  const LEGACY_API_KEY_STORE = 'marginalia-api-key';
   async function loadApiKey(){
     try{
       const res = await window.storage.get(API_KEY_STORE, false);
       if(res && res.value) apiKey = res.value;
-    }catch(e){ /* not set yet */ }
+    }catch(e){
+      try{
+        const legacy = await window.storage.get(LEGACY_API_KEY_STORE, false);
+        if(legacy && legacy.value){
+          apiKey = legacy.value;
+          await window.storage.set(API_KEY_STORE, apiKey, false);
+        }
+      }catch(e2){ /* not set yet, either way */ }
+    }
   }
   function openSettings(){
-    sheet = { mode:'settings', apiKeyInput: apiKey, driveMsg: null, fbMsg: null };
+    sheet = { mode:'settings', apiKeyInput: apiKey, fbMsg: null };
     render();
   }
   async function saveApiKey(){
@@ -715,181 +725,25 @@ body{
     render();
   }
 
-  const GDRIVE_CLIENT_STORE = 'marginalia-gdrive-client-id';
-  async function loadGDriveClientId(){
-    try{
-      const res = await window.storage.get(GDRIVE_CLIENT_STORE, false);
-      if(res && res.value) gDriveClientId = res.value;
-    }catch(e){ /* not set yet */ }
-  }
-  function saveGDriveClientId(){
-    const val = document.getElementById('f-gdrive-client').value.trim();
-    gDriveClientId = val;
-    (async () => {
-      try{
-        if(gDriveClientId) await window.storage.set(GDRIVE_CLIENT_STORE, gDriveClientId, false);
-        else await window.storage.delete(GDRIVE_CLIENT_STORE, false);
-      }catch(e){ console.error('storage failed', e); }
-    })();
-    if(sheet) sheet.driveMsg = 'Client ID saved.';
-    render();
-  }
-
-  function gisReady(){
-    return typeof google !== 'undefined' && google.accounts && google.accounts.oauth2;
-  }
-
-  function connectGoogleDrive(){
-    if(sheet) sheet.driveMsg = null;
-    if(!gDriveClientId){
-      if(sheet) sheet.driveMsg = 'Save an OAuth Client ID first.';
-      render();
-      return;
-    }
-    if(!gisReady()){
-      if(sheet) sheet.driveMsg = 'Google sign-in script failed to load — check your connection and that this page is served over https (not opened as a local file).';
-      render();
-      return;
-    }
-    if(!gDriveTokenClient){
-      gDriveTokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: gDriveClientId,
-        scope: 'https://www.googleapis.com/auth/drive.file',
-        callback: async (resp) => {
-          if(resp && resp.access_token){
-            gDriveAccessToken = resp.access_token;
-            gDriveConnected = true;
-            if(sheet) sheet.driveMsg = null;
-            render();
-            await driveInitialSync();
-          } else {
-            if(sheet) sheet.driveMsg = 'Google sign-in failed or was cancelled.';
-            render();
-          }
-        }
-      });
-    }
-    gDriveTokenClient.requestAccessToken({ prompt: gDriveAccessToken ? '' : 'consent' });
-  }
-
-  function disconnectGoogleDrive(){
-    if(gDriveAccessToken && gisReady()){
-      google.accounts.oauth2.revoke(gDriveAccessToken, () => {});
-    }
-    gDriveAccessToken = null;
-    gDriveConnected = false;
-    gDriveFileId = null;
-    if(sheet) sheet.driveMsg = 'Disconnected.';
-    render();
-  }
-
-  // Wraps a Drive API fetch, retrying once with a silently-refreshed token
-  // if the access token has expired (tokens from GIS last about an hour).
-  async function driveFetch(url, options){
-    options = options || {};
-    options.headers = Object.assign({}, options.headers, { Authorization: 'Bearer ' + gDriveAccessToken });
-    let res = await fetch(url, options);
-    if(res.status === 401 && gDriveTokenClient){
-      await new Promise((resolve) => {
-        const prevCallback = gDriveTokenClient.callback;
-        gDriveTokenClient.callback = (resp) => {
-          if(resp && resp.access_token) gDriveAccessToken = resp.access_token;
-          gDriveTokenClient.callback = prevCallback;
-          resolve();
-        };
-        gDriveTokenClient.requestAccessToken({ prompt: '' });
-      });
-      options.headers.Authorization = 'Bearer ' + gDriveAccessToken;
-      res = await fetch(url, options);
-    }
-    return res;
-  }
-
-  async function driveFindFile(){
-    const q = encodeURIComponent(`name='${GDRIVE_FILE_NAME}' and trashed=false`);
-    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,modifiedTime)`);
-    if(!res.ok) throw new Error('Drive list failed (' + res.status + ')');
-    const json = await res.json();
-    return (json.files && json.files[0]) || null;
-  }
-
-  async function driveDownload(fileId){
-    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
-    if(!res.ok) throw new Error('Drive download failed (' + res.status + ')');
-    return await res.text();
-  }
-
-  async function driveUpload(fileId, content){
-    const metadata = { name: GDRIVE_FILE_NAME, mimeType: 'application/json' };
-    const boundary = 'marginalia-' + uid();
-    const body =
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
-      JSON.stringify(fileId ? {} : metadata) + `\r\n` +
-      `--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
-      content + `\r\n--${boundary}--`;
-    const url = fileId
-      ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
-      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-    const res = await driveFetch(url, {
-      method: fileId ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
-      body
-    });
-    if(!res.ok) throw new Error('Drive upload failed (' + res.status + ')');
-    const json = await res.json();
-    return json.id;
-  }
-
-  async function drivePush(){
-    if(!gDriveConnected || !gDriveAccessToken) return;
-    try{
-      const id = await driveUpload(gDriveFileId, JSON.stringify(data));
-      gDriveFileId = id;
-    }catch(e){
-      console.error('Drive push failed', e);
-    }
-  }
-
-  async function driveInitialSync(){
-    gDriveSyncing = true;
-    render();
-    try{
-      const existing = await driveFindFile();
-      if(existing){
-        gDriveFileId = existing.id;
-        const remoteRaw = await driveDownload(existing.id);
-        const remoteData = JSON.parse(remoteRaw);
-        if(remoteData && Array.isArray(remoteData.articles) && remoteData.articles.length){
-          data = remoteData;
-          data.voicePrefs = data.voicePrefs || {};
-          data.vocab = data.vocab || {};
-          currentArticleId = data.articles[0].id;
-        } else {
-          await drivePush();
-        }
-      } else {
-        await drivePush();
-      }
-      if(sheet) sheet.driveMsg = 'Synced.';
-      await save();
-    }catch(e){
-      console.error(e);
-      if(sheet) sheet.driveMsg = 'Sync failed: ' + e.message;
-    }finally{
-      gDriveSyncing = false;
-      render();
-    }
-  }
-
-  const FB_CONFIG_STORE = 'marginalia-firebase-config';
+  const FB_CONFIG_STORE = 'lingobook-firebase-config';
+  const LEGACY_FB_CONFIG_STORE = 'marginalia-firebase-config';
   async function loadFirebaseConfig(){
     try{
       const res = await window.storage.get(FB_CONFIG_STORE, false);
       if(res && res.value){
         fbConfig = JSON.parse(res.value);
         initFirebaseApp();
+        return;
       }
-    }catch(e){ /* not set yet */ }
+    }catch(e){ /* fall through to legacy check */ }
+    try{
+      const legacy = await window.storage.get(LEGACY_FB_CONFIG_STORE, false);
+      if(legacy && legacy.value){
+        fbConfig = JSON.parse(legacy.value);
+        await window.storage.set(FB_CONFIG_STORE, legacy.value, false);
+        initFirebaseApp();
+      }
+    }catch(e2){ /* not set yet, either way */ }
   }
 
   function initFirebaseApp(){
@@ -922,13 +776,22 @@ body{
       render();
       return;
     }
+    // Accept either raw JSON or the literal snippet Firebase's console gives you
+    // (const firebaseConfig = { apiKey: "...", ... };  — unquoted keys, trailing ;)
+    let text = raw.replace(/^\s*(?:const|let|var)\s+\w+\s*=\s*/, '').replace(/;\s*$/, '').trim();
+    let parsed;
     try{
-      fbConfig = JSON.parse(raw);
-    }catch(e){
-      if(sheet) sheet.fbMsg = 'That doesn\u2019t look like valid JSON \u2014 paste the whole firebaseConfig object from your Firebase project settings.';
-      render();
-      return;
+      parsed = JSON.parse(text);
+    }catch(e1){
+      try{
+        parsed = new Function('"use strict"; return (' + text + ');')();
+      }catch(e2){
+        if(sheet) sheet.fbMsg = 'That doesn\u2019t look like a valid config \u2014 paste the whole firebaseConfig object from your Firebase project settings.';
+        render();
+        return;
+      }
     }
+    fbConfig = parsed;
     (async () => {
       try{ await window.storage.set(FB_CONFIG_STORE, JSON.stringify(fbConfig), false); }catch(e){ console.error(e); }
     })();
@@ -1795,21 +1658,9 @@ The three examples must differ from each other and from the source sentence, be 
               <button class="save" onclick="MG.saveApiKey()">Save</button>
             </div>
 
-            <label style="margin-top:22px;">Google Drive sync</label>
-            <input type="text" id="f-gdrive-client" value="${esc(gDriveClientId)}" placeholder="OAuth Client ID (....apps.googleusercontent.com)">
-            <div class="hint" style="margin-top:8px;">Syncs your articles and vocabulary across devices via a file in your own Google Drive. Requires a free OAuth Client ID you create yourself in Google Cloud Console, and this page must be hosted at a real URL (not opened as a local file). Ask me for setup steps if you haven't done this before.</div>
-            <div class="sheet-actions">
-              <button onclick="MG.saveGDriveClientId()">Save Client ID</button>
-              ${gDriveClientId ? `<button class="save" onclick="MG.connectGoogleDrive()">${gDriveConnected ? 'Reconnect' : 'Connect Drive'}</button>` : ''}
-              ${gDriveConnected ? '<button class="delete" onclick="MG.disconnectGoogleDrive()">Disconnect</button>' : ''}
-            </div>
-            ${gDriveSyncing ? '<div class="loading-row">Syncing with Google Drive…</div>' : ''}
-            ${gDriveConnected && !gDriveSyncing ? '<div class="loading-row" style="color:var(--moss);">Connected — changes now sync to Drive automatically.</div>' : ''}
-            ${sheet.driveMsg ? `<div class="loading-row">${esc(sheet.driveMsg)}</div>` : ''}
-
             <label style="margin-top:22px;">Live collaboration (Firebase)</label>
             <textarea id="f-fbconfig" style="min-height:90px;font-family:monospace;font-size:12.5px;" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...", ...}'>${fbConfig ? esc(JSON.stringify(fbConfig, null, 2)) : ''}</textarea>
-            <div class="hint" style="margin-top:8px;">Turns your library into a shared space that updates live for everyone connected — meant for two people (e.g. you and your teacher) editing the same articles and vocab together. This replaces Drive sync while connected. Requires a free Firebase project you create yourself; paste the config object from your project settings.</div>
+            <div class="hint" style="margin-top:8px;">Turns your library into a shared space that updates live for everyone connected — meant for two people (e.g. you and your teacher) editing the same articles and vocab together. Requires a free Firebase project you create yourself; paste the config object from your project settings.</div>
             <div class="sheet-actions">
               <button onclick="MG.saveFirebaseConfig()">Save config</button>
             </div>
@@ -1972,13 +1823,11 @@ The three examples must differ from each other and from the source sentence, be 
     requestDeleteArticle, cancelDeleteArticle,
     openVoicePicker, selectVoice, resetVoice, previewVoice,
     openSettings, saveApiKey, clearApiKey,
-    saveGDriveClientId, connectGoogleDrive, disconnectGoogleDrive,
     saveFirebaseConfig, signInFirebase, signOutFirebase, updateSharedPassword
   };
 
   load();
   loadApiKey();
-  loadGDriveClientId();
   loadFirebaseConfig();
 })();
 </script>
