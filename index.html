@@ -1646,7 +1646,7 @@ The three examples must differ from each other and from the source sentence, be 
       el.innerHTML = header + `<div class="hint">Tap any word in the article to save a definition, example, or grammar note.</div>`;
       return;
     }
-    const items = list.slice().sort((a,b)=>b.createdAt-a.createdAt).map(v => `
+    const items = list.slice().sort((a,b)=>a.createdAt-b.createdAt).map(v => `
       <div class="vocab-item" onclick="MG.openExisting('${v.id}')">
         <div class="term">${esc(v.term)}</div>
         <div class="def">${esc(v.definition || 'No definition yet')}</div>
