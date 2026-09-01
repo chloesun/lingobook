@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lingo Book — reading &amp; vocabulary</title>
+<title>LingoBook — reading &amp; vocabulary</title>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
@@ -38,6 +38,34 @@ body{
 }
 
 /* header */
+.gate{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.gate-card{
+  width:100%;
+  max-width:340px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:28px 24px;
+  text-align:center;
+}
+.gate-card input{
+  width:100%;
+  font-family:'IBM Plex Sans',sans-serif;
+  font-size:14px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:3px;
+  background:var(--paper);
+  color:var(--ink);
+  text-align:center;
+}
+
 .app-header{
   display:flex;
   align-items:center;
@@ -535,6 +563,9 @@ body{
   let fbUser = null;
   let fbConnected = false;
   let fbUnsubArticles = null, fbUnsubVocab = null;
+  let appUnlocked = false; // false = show the password gate instead of the app
+  let gateMsg = null;
+  let gateBusy = false;
 
   const sampleText = "Le marché aux fleurs ouvre tôt, avant que la ville ne se réveille vraiment. Les vendeurs installent leurs étals avec des gestes lents, presque rituels. Une odeur de café se mêle à celle des roses et du jasmin. Les habitants du quartier viennent chaque semaine, non pas pour acheter, mais pour retrouver ce moment de calme avant la journée.";
 
@@ -725,9 +756,23 @@ body{
     render();
   }
 
+  // Firebase config is baked in directly — this is standard practice for
+  // Firebase web apps, not a secret. Real access control happens via the
+  // Firestore rules + shared password below, not by hiding this object.
+  const DEFAULT_FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDllS9dFM-IjOqUyuUJCXnw1qntBEOnY1M",
+    authDomain: "lingobook-9652e.firebaseapp.com",
+    projectId: "lingobook-9652e",
+    storageBucket: "lingobook-9652e.firebasestorage.app",
+    messagingSenderId: "958516941102",
+    appId: "1:958516941102:web:cae45e8b483fda7c4b6abf"
+  };
+
   const FB_CONFIG_STORE = 'lingobook-firebase-config';
   const LEGACY_FB_CONFIG_STORE = 'marginalia-firebase-config';
   async function loadFirebaseConfig(){
+    // A locally-saved custom config (from Settings) overrides the built-in
+    // default, for anyone who wants to point this app at a different project.
     try{
       const res = await window.storage.get(FB_CONFIG_STORE, false);
       if(res && res.value){
@@ -742,8 +787,11 @@ body{
         fbConfig = JSON.parse(legacy.value);
         await window.storage.set(FB_CONFIG_STORE, legacy.value, false);
         initFirebaseApp();
+        return;
       }
-    }catch(e2){ /* not set yet, either way */ }
+    }catch(e2){ /* not set, either way */ }
+    fbConfig = DEFAULT_FIREBASE_CONFIG;
+    initFirebaseApp();
   }
 
   function initFirebaseApp(){
@@ -755,6 +803,7 @@ body{
       fbAuth.onAuthStateChanged((user) => {
         fbUser = user;
         if(user){
+          appUnlocked = true;
           connectFirebaseData();
         }else{
           disconnectFirebaseData();
@@ -763,16 +812,15 @@ body{
       });
     }catch(e){
       console.error('Firebase init failed', e);
-      if(sheet) sheet.fbMsg = 'Firebase init failed: ' + e.message;
     }
   }
 
   function saveFirebaseConfig(){
     const raw = document.getElementById('f-fbconfig').value.trim();
     if(!raw){
-      fbConfig = null;
+      fbConfig = DEFAULT_FIREBASE_CONFIG;
       (async () => { try{ await window.storage.delete(FB_CONFIG_STORE, false); }catch(e){} })();
-      if(sheet) sheet.fbMsg = 'Config cleared.';
+      if(sheet) sheet.fbMsg = 'Reverted to the built-in project.';
       render();
       return;
     }
@@ -806,19 +854,9 @@ body{
   // soft gate enforced by the app's own UI, not something Firebase verifies
   // server-side — real protection here is knowing the Firebase config at all,
   // same caveat as before, just now with a conveniently changeable password.
-  async function signInFirebase(){
-    if(!fbConfig){
-      if(sheet) sheet.fbMsg = 'Save your Firebase config first.';
-      render();
-      return;
-    }
-    const input = document.getElementById('f-fbpassword');
-    const typed = input ? input.value : '';
-    if(!typed){
-      if(sheet) sheet.fbMsg = 'Enter the shared password.';
-      render();
-      return;
-    }
+  async function attemptFirebaseSignIn(typed){
+    if(!fbConfig) return { ok:false, message:'Firebase isn\u2019t configured yet.' };
+    if(!typed) return { ok:false, message:'Enter the shared password.' };
     if(!fbAuth) initFirebaseApp();
     try{
       await fbAuth.signInAnonymously();
@@ -829,17 +867,46 @@ body{
         await ref.set({ password: typed });
       } else if(doc.data().password !== typed){
         await fbAuth.signOut();
-        if(sheet) sheet.fbMsg = 'Incorrect password.';
-        render();
-        return;
+        return { ok:false, message:'Incorrect password.' };
       }
-      if(sheet) sheet.fbMsg = null;
-      render();
+      return { ok:true };
     }catch(e){
       console.error(e);
-      if(sheet) sheet.fbMsg = 'Connection failed: ' + e.message;
-      render();
+      return { ok:false, message:'Connection failed: ' + e.message };
     }
+  }
+
+  function signInFirebase(){
+    const input = document.getElementById('f-fbpassword');
+    const typed = input ? input.value : '';
+    attemptFirebaseSignIn(typed).then(res => {
+      if(sheet) sheet.fbMsg = res.ok ? null : res.message;
+      render();
+    });
+  }
+
+  function gateConnect(){
+    const input = document.getElementById('gate-password');
+    const typed = input ? input.value : '';
+    gateMsg = null;
+    gateBusy = true;
+    render();
+    attemptFirebaseSignIn(typed).then(res => {
+      gateBusy = false;
+      if(res.ok){
+        gateMsg = null;
+        appUnlocked = true;
+      } else {
+        gateMsg = res.message;
+      }
+      render();
+    });
+  }
+
+  function gateSkip(){
+    appUnlocked = true;
+    gateMsg = null;
+    render();
   }
 
   async function updateSharedPassword(){
@@ -1659,12 +1726,12 @@ The three examples must differ from each other and from the source sentence, be 
             </div>
 
             <label style="margin-top:22px;">Live collaboration (Firebase)</label>
-            <textarea id="f-fbconfig" style="min-height:90px;font-family:monospace;font-size:12.5px;" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...", ...}'>${fbConfig ? esc(JSON.stringify(fbConfig, null, 2)) : ''}</textarea>
-            <div class="hint" style="margin-top:8px;">Turns your library into a shared space that updates live for everyone connected — meant for two people (e.g. you and your teacher) editing the same articles and vocab together. Requires a free Firebase project you create yourself; paste the config object from your project settings.</div>
+            <div class="hint" style="margin-top:0;">This app is already connected to its built-in shared project — you shouldn't need to touch this. Only paste a config below if you specifically want to point this copy at a different Firebase project.</div>
+            <textarea id="f-fbconfig" style="min-height:70px;font-family:monospace;font-size:12.5px;margin-top:8px;" placeholder='(advanced) paste a different firebaseConfig object here'></textarea>
             <div class="sheet-actions">
-              <button onclick="MG.saveFirebaseConfig()">Save config</button>
+              <button onclick="MG.saveFirebaseConfig()">Save custom config</button>
             </div>
-            ${fbConfig && !fbUser ? `
+            ${!fbUser ? `
               <label style="margin-top:14px;">Shared access password</label>
               <input type="password" id="f-fbpassword" placeholder="First time connecting? Choose one — it becomes the shared password">
               <div class="sheet-actions">
@@ -1763,13 +1830,34 @@ The three examples must differ from each other and from the source sentence, be 
     addArticle();
   }
 
+  function renderGate(){
+    return `
+      <div class="gate">
+        <div class="gate-card">
+          <div class="app-title" style="margin-bottom:2px;">Lingo<span>Book</span></div>
+          <div class="app-sub" style="margin-bottom:20px;">Enter the shared password to continue</div>
+          <input type="password" id="gate-password" placeholder="Password" onkeydown="if(event.key==='Enter') MG.gateConnect();">
+          <div class="sheet-actions" style="margin-top:14px;">
+            <button class="save" style="flex:1;" onclick="MG.gateConnect()">${gateBusy ? 'Connecting…' : 'Connect'}</button>
+          </div>
+          ${gateMsg ? `<div class="loading-row" style="color:var(--err);margin-top:4px;">${esc(gateMsg)}</div>` : ''}
+          <button class="add-example-btn" style="margin-top:18px;" onclick="MG.gateSkip()">Continue without connecting</button>
+        </div>
+      </div>
+    `;
+  }
+
   function render(){
     const app = document.getElementById('app');
+    if(!appUnlocked && !fbUser){
+      app.innerHTML = renderGate();
+      return;
+    }
     const art = currentArticle();
     app.innerHTML = `
       <div class="app-header">
         <div>
-          <div class="app-title">Lingo <span>Book</span></div>
+          <div class="app-title">Lingo<span>Book</span></div>
           <div class="app-sub">${fbUser ? 'Live shared library — connected' : 'Read, listen, annotate — one article at a time'}</div>
         </div>
         <button class="icon-btn" title="Settings" onclick="MG.openSettings()">⚙</button>
@@ -1823,7 +1911,8 @@ The three examples must differ from each other and from the source sentence, be 
     requestDeleteArticle, cancelDeleteArticle,
     openVoicePicker, selectVoice, resetVoice, previewVoice,
     openSettings, saveApiKey, clearApiKey,
-    saveFirebaseConfig, signInFirebase, signOutFirebase, updateSharedPassword
+    saveFirebaseConfig, signInFirebase, signOutFirebase, updateSharedPassword,
+    gateConnect, gateSkip
   };
 
   load();
