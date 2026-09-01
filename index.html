@@ -1407,10 +1407,10 @@ The three examples must differ from each other and from the source sentence, be 
     const art = currentArticle();
     speakText(sheet.examples[idx], art ? art.language : 'English');
   }
-  function playContextSentence(){
-    if(!sheet || !sheet.contextSentence) return;
+  function playWord(){
+    if(!sheet || !sheet.wordText) return;
     const art = currentArticle();
-    speakText(sheet.contextSentence, art ? art.language : 'English');
+    speakText(sheet.wordText, art ? art.language : 'English');
   }
 
   function openAdd(){
@@ -1684,7 +1684,7 @@ The three examples must differ from each other and from the source sentence, be 
             <button class="regen-btn" title="Regenerate" onclick="MG.regenerate()">↻</button>
             <div class="sheet-title" style="display:flex;align-items:center;gap:10px;">
               ${esc(sheet.wordText)}
-              ${sheet.contextSentence ? `<button class="icon-btn" title="Read aloud" onclick="MG.playContextSentence()" style="font-size:13px;flex:0 0 auto;">▶</button>` : ''}
+              ${sheet.contextSentence ? `<button class="icon-btn" title="Read word aloud" onclick="MG.playWord()" style="font-size:13px;flex:0 0 auto;">▶</button>` : ''}
             </div>
             ${sheet.loading ? '<div class="loading-row">Looking up meaning and examples…</div>' : ''}
             ${sheet.genError === 'no-key' ? '<div class="loading-row" style="color:var(--err)">No Anthropic API key set — add one in ⚙ Settings to enable auto-lookup outside Claude, or fill in manually below.</div>' : ''}
@@ -1854,7 +1854,7 @@ The three examples must differ from each other and from the source sentence, be 
       <div class="app-header">
         <div>
           <div class="app-title">Lingo<span>Book</span></div>
-          <div class="app-sub">${fbUser ? 'Live shared library — connected' : 'Read, listen, annotate — one article at a time'}</div>
+          <div class="app-sub">Read, listen, annotate — one article at a time</div>
         </div>
         <button class="icon-btn" title="Settings" onclick="MG.openSettings()">⚙</button>
       </div>
@@ -1902,7 +1902,7 @@ The three examples must differ from each other and from the source sentence, be 
     togglePlay, replay, jumpSentence, openAnnotate, openAdd, switchArticle,
     closeSheet, closeSheetIfBackdrop, saveAnnotationFromForm, addArticleFromForm,
     deleteAnnotation, openExisting, toggleVocab, regenerate, addExampleRow,
-    removeExampleRow, playExample, playContextSentence, onSpeedInput, onSpeedChange,
+    removeExampleRow, playExample, playWord, onSpeedInput, onSpeedChange,
     openEditArticle, deleteArticle, editArticleById, toggleLibrary,
     requestDeleteArticle, cancelDeleteArticle,
     openVoicePicker, selectVoice, resetVoice, previewVoice,
